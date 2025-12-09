@@ -1,3 +1,9 @@
+gnome-control-center (1:43.6-2~deb12u1radxa1) unstable; urgency=medium
+
+  * display: Allow mirroring for any number of displays
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>   Tue, 09 Dec 2025 16:54:50 +0800
+
 gnome-control-center (1:43.6-2~deb12u1) bookworm; urgency=medium
 
   * Team upload

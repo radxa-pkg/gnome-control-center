@@ -1,0 +1,72 @@
+From 4ed1af010a468f680aeafe4a49b04b08128ad16c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Timotej=20=C5=A0ul=C3=ADk?= <timotej.sulik@gmail.com>
+Date: Thu, 12 Jan 2023 01:23:09 +0100
+Subject: [PATCH 1/1] display: Allow mirroring for any number of displays
+
+---
+ panels/display/cc-display-config-dbus.c |  8 ++++++--
+ panels/display/cc-display-panel.c       | 21 +--------------------
+ 2 files changed, 7 insertions(+), 22 deletions(-)
+
+diff --git a/panels/display/cc-display-config-dbus.c b/panels/display/cc-display-config-dbus.c
+index c3b269d24..b6c1cf757 100644
+--- a/panels/display/cc-display-config-dbus.c
++++ b/panels/display/cc-display-config-dbus.c
+@@ -1265,8 +1265,12 @@ cc_display_config_dbus_set_cloning (CcDisplayConfig *pself,
+     {
+       logical_monitor = g_object_new (CC_TYPE_DISPLAY_LOGICAL_MONITOR, NULL);
+       for (l = self->monitors; l != NULL; l = l->next)
+-        cc_display_monitor_dbus_set_logical_monitor (CC_DISPLAY_MONITOR_DBUS (l->data),
+-                                                     logical_monitor);
++        {
++          if (!cc_display_monitor_is_usable (l->data))
++            continue;
++          cc_display_monitor_dbus_set_logical_monitor (CC_DISPLAY_MONITOR_DBUS (l->data),
++                                                       logical_monitor);
++        }
+       register_logical_monitor (self, logical_monitor);
+     }
+   else if (!clone && is_cloning)
+diff --git a/panels/display/cc-display-panel.c b/panels/display/cc-display-panel.c
+index 06bd0e8e1..cb460e361 100644
+--- a/panels/display/cc-display-panel.c
++++ b/panels/display/cc-display-panel.c
+@@ -796,12 +796,8 @@ rebuild_ui (CcDisplayPanel *panel)
+   n_outputs = g_list_length (outputs);
+   type = config_get_current_type (panel);
+ 
+-  if (n_outputs == 2 && n_usable_outputs == 2)
++  if (n_usable_outputs > 1)
+     {
+-      /* We only show the top chooser with two monitors that are
+-       * both usable (i.e. two monitors incl. internal and lid not closed).
+-       * In this case, the arrangement widget is shown if we are in JOIN mode.
+-       */
+       if (type > CC_DISPLAY_CONFIG_LAST_VALID)
+         type = CC_DISPLAY_CONFIG_JOIN;
+ 
+@@ -814,21 +810,6 @@ rebuild_ui (CcDisplayPanel *panel)
+       else
+         move_display_settings_to_separate_page (panel);
+     }
+-  else if (n_usable_outputs > 1)
+-    {
+-      /* We have more than one usable monitor. In this case there is no chooser,
+-       * and we always show the arrangement widget.
+-       */
+-      gtk_widget_set_visible (panel->display_settings_group, TRUE);
+-      gtk_widget_set_visible (panel->display_multiple_displays, FALSE);
+-      gtk_widget_set_visible (panel->arrangement_row, TRUE);
+-
+-      /* Mirror is also invalid as it cannot be configured using this UI. */
+-      if (type == CC_DISPLAY_CONFIG_CLONE || type > CC_DISPLAY_CONFIG_LAST_VALID)
+-        type = CC_DISPLAY_CONFIG_JOIN;
+-
+-      move_display_settings_to_separate_page (panel);
+-    }
+   else
+     {
+       type = CC_DISPLAY_CONFIG_JOIN;
+-- 
+2.47.3
+

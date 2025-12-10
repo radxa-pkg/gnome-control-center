@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -euo pipefail
+shopt -s nullglob
+set -x
+build() {
+    local SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+    local CONTAINER_BACKEND="${CONTAINER_BACKEND:-podman}"
+    local CONTAINER_SHELL="${CONTAINER_SHELL:-false}"
+    local CONTAINER_NAME="gnome-control-center-build"
+    local IMAGE_NAME="${CONTAINER_NAME}:builder"
+
+    local CONTAINER_EXIT_CODE=0
+
+    $CONTAINER_BACKEND build --force-rm -t "${IMAGE_NAME}" "$SCRIPT_DIR"
+
+    local CONTAINER_OPTIONS=( "--name" "${CONTAINER_NAME}" )
+    CONTAINER_OPTIONS+=( "--rm" )
+    CONTAINER_OPTIONS+=( "--workdir" "$PWD" )
+    CONTAINER_OPTIONS+=( "--mount" "type=bind,source=$(realpath $SCRIPT_DIR/../../..),destination=$(realpath $SCRIPT_DIR/../../..)" )
+    if [[ -t 0 ]]
+    then
+        CONTAINER_OPTIONS+=( "-it" )
+    fi
+
+    if $CONTAINER_SHELL
+    then
+        if ! $CONTAINER_BACKEND run "${CONTAINER_OPTIONS[@]}" "${IMAGE_NAME}" bash
+        then
+            CONTAINER_EXIT_CODE="$($CONTAINER_BACKEND inspect ${CONTAINER_NAME} --format='{{.State.ExitCode}}')"
+        fi
+    else
+        if ! $CONTAINER_BACKEND run "${CONTAINER_OPTIONS[@]}" "${IMAGE_NAME}" bash -c "apt build-dep -y . && make deb"
+        then
+            CONTAINER_EXIT_CODE="$($CONTAINER_BACKEND inspect ${CONTAINER_NAME} --format='{{.State.ExitCode}}')"
+        fi
+    fi
+    return $CONTAINER_EXIT_CODE
+}
+
+build
